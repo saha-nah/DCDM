@@ -1,0 +1,74 @@
+###########  A non-parallel, non-scalable Map-Reduce implementation   ###########
+
+def groupByKey(data):
+    result = dict()
+    for key, value in data:
+        if key in result:
+            result[key].append(value)
+        else:
+            result[key] = [value]
+    return result
+        
+def reduceByKey(f, data):
+    key_values = groupByKey(data)
+    return map(lambda key: 
+                   (key, reduce(f, key_values[key])), 
+                       key_values)
+                    
+                    
+=====================================================================
+
+##############  WORD COUNT USING MINI_MAPREDUCE   ##################
+
+data = map(lambda x: (x, 1), "to be or not to be".split())
+data
+groupByKey(data)
+
+reduceByKey(lambda x, y: x + y, data)
+
+=====================================================================
+
+###########   Parallelising MiniMapReduce   ################
+
+def reduceByKey_multithreaded(f, data):
+    key_values = groupByKey(data)
+    return my_map_multithreaded(
+        lambda key: (key, reduce(f, key_values[key])), key_values.keys())
+
+
+from threading import Thread
+
+def schedule_computation_threaded(f, result, data, threads, i):    
+    # Each function evaluation is scheduled on a different core.
+    def my_job(): 
+        print ("Processing data:", data[i], "... ")
+        result[i] = f(data[i])
+        print ("Finished job #", i)    
+        print ("Result was", result[i])       
+    threads[i] = Thread(target=my_job)
+    
+def my_map_multithreaded(f, data):
+    n = len(data)
+    result = [None] * n
+    threads = [None] * n
+    print ("Scheduling jobs.. ")
+    for i in range(n):
+        schedule_computation_threaded(f, result, data, threads, i)
+    print ("Starting jobs.. ")
+    for i in range(n):
+        threads[i].start()
+    print ("Waiting for jobs to finish.. ")
+    for i in range(n):
+        threads[i].join()
+    print ("All done.")
+    
+reduceByKey_multithreaded(lambda x, y: x + y, data)
+
+my_map_multithreaded(lambda x: x*x, [1, 2, 3, 4, 5])
+
+from numpy.random import uniform
+from time import sleep
+def a_function_which_takes_a_long_time(x):
+    sleep(uniform(2, 10))  # Simulate some long computation
+    return x*x
+my_map_multithreaded(a_function_which_takes_a_long_time, [1, 2, 3, 4, 5])
